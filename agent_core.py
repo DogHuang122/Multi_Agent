@@ -2,8 +2,8 @@ import operator
 from typing import TypedDict, List, Annotated
 # 导入 LangGraph 的核心组件
 from langgraph.graph import StateGraph, START, END
-from Summary import Summary
-from Planer import planner_node
+from Summary import Summary_node
+from Planner import planner_node
 from Reviewer import reviewer_node
 from Search import researcher_node
 from test_writer_reviewer import writer_node
@@ -35,7 +35,7 @@ workflow.add_node("planner_node", planner_node)
 workflow.add_node("researcher_node", researcher_node)
 workflow.add_node("writer_node", writer_node)
 workflow.add_node("reviewer_node", reviewer_node)
-workflow.add_node("summary_node",Summary)
+workflow.add_node("summary_node", Summary_node)
 
 # 3. 添加普通边 (线性的流程)
 workflow.add_edge(START, "planner_node")

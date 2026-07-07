@@ -27,7 +27,7 @@ COLLECTION_NAME = "global_knowledge_base"
 # ==========================================
 # 1. Summary 核心业务逻辑
 # ==========================================
-def Summary(State: dict):
+def Summary_node(State: dict):
     print("--- 📝 正在运行 Summary 节点 (Milvus 检索 + 大模型总结) ---")
 
     topic = State.get("topic", "未知问题")
@@ -99,6 +99,6 @@ if __name__ == '__main__':
     }
 
     print("\n========== 开始测试 Summary 节点 ==========")
-    final_update = Summary(test_state)
+    final_update = Summary_node(test_state)
 
     print(final_update["summary"])
