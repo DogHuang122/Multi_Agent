@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+pydantic
+langgraph
+langchain
+langchain-openai  # 如果你用了 openai
+# 下面这些根据你实际用到的搜索库填写，比如：
+langchain_community
+langchain_core
+beautifulsoup4
+langchain_openai
+operate

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 多智能体写作工作流</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        .prose h1 { font-size: 1.5rem; font-weight: bold; margin-top: 1rem; margin-bottom: 0.5rem; }
+        .prose h2, .prose h3 { font-size: 1.25rem; font-weight: bold; margin-top: 1rem; margin-bottom: 0.5rem; }
+        .prose p { margin-bottom: 0.75rem; line-height: 1.6; }
+        .prose ul, .prose ol { margin-left: 1.5rem; margin-bottom: 0.75rem; }
+        .prose li { list-style-type: disc; }
+
+        /* 日志区域滚动条美化 */
+        #logContainer::-webkit-scrollbar { width: 6px; }
+        #logContainer::-webkit-scrollbar-track { background: #f1f1f1; }
+        #logContainer::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans">
+
+    <div class="max-w-6xl mx-auto px-4 py-8">
+        <!-- 头部 -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-extrabold text-indigo-600 mb-2">🤖 LangGraph 智能体写作系统</h1>
+            <p class="text-gray-500">主编与写手协作：拆解 -> 搜索 -> 总结 -> 初稿 -> 质检打回循环 -> 终稿</p>
+        </div>
+
+        <!-- 输入区 -->
+        <div class="bg-white rounded-xl shadow-md p-6 mb-6">
+            <div class="flex gap-4">
+                <input type="text" id="topic"
+                    class="flex-1 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                    placeholder="请输入想要生成的研究报告主题，例如：AiAgent的发展趋势与就业前景"
+                    onkeydown="if(event.key === 'Enter') generateArticle()">
+                <button id="submitBtn" onclick="generateArticle()"
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-8 rounded-lg transition duration-200 flex items-center justify-center min-w-[140px]">
+                    启动 Agent
+                </button>
+            </div>
+        </div>
+
+        <!-- 主体展示区 (左右分栏) -->
+        <div class="flex flex-col md:flex-row gap-6 hidden" id="workspace">
+
+            <!-- 左侧：Agent 思考日志区 -->
+            <div class="w-full md:w-1/3 bg-gray-800 rounded-xl shadow-md overflow-hidden flex flex-col h-[600px]">
+                <div class="bg-gray-900 px-4 py-3 border-b border-gray-700 flex justify-between items-center">
+                    <span class="text-gray-200 font-bold text-sm">🧠 Agent 执行日志</span>
+                    <span class="flex h-3 w-3 relative">
+                        <span id="pulse" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75 hidden"></span>
+                        <span id="dot" class="relative inline-flex rounded-full h-3 w-3 bg-gray-500"></span>
+                    </span>
+                </div>
+                <div id="logContainer" class="p-4 overflow-y-auto flex-1 font-mono text-sm text-green-400 space-y-3">
+                    <!-- 日志将在这里插入 -->
+                </div>
+            </div>
+
+            <!-- 右侧：最终文章渲染区 -->
+            <div class="w-full md:w-2/3 bg-white rounded-xl shadow-md flex flex-col h-[600px]">
+                <div class="bg-gray-50 px-6 py-4 border-b flex justify-between items-center">
+                    <h2 class="text-lg font-bold text-gray-800">📄 最终研究报告</h2>
+                    <span id="statusBadge" class="px-3 py-1 bg-gray-200 text-gray-700 text-xs font-semibold rounded-full">等待中</span>
+                </div>
+                <div class="p-6 overflow-y-auto flex-1">
+                    <div id="content" class="prose max-w-none text-gray-700">
+                        <div class="flex flex-col items-center justify-center h-full text-gray-400 mt-20">
+                            <svg class="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10l6 6v10a2 2 0 01-2 2z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M14 4v6h6"></path></svg>
+                            <p>等待 Agent 完成所有工作流...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        async function generateArticle() {
+            const topicInput = document.getElementById('topic');
+            const submitBtn = document.getElementById('submitBtn');
+            const workspace = document.getElementById('workspace');
+            const logContainer = document.getElementById('logContainer');
+            const contentDiv = document.getElementById('content');
+            const statusBadge = document.getElementById('statusBadge');
+
+            const pulse = document.getElementById('pulse');
+            const dot = document.getElementById('dot');
+
+            const topic = topicInput.value.trim();
+            if (!topic) { alert("请输入主题！"); return; }
+
+            // UI 初始重置
+            topicInput.disabled = true;
+            submitBtn.disabled = true;
+            submitBtn.innerText = "运行中...";
+            workspace.classList.remove('hidden');
+            logContainer.innerHTML = '';
+            contentDiv.innerHTML = '<p class="text-center text-gray-400 mt-10">Agent 正在努力思考中，请关注左侧进度...</p>';
+
+            statusBadge.className = "px-3 py-1 bg-yellow-100 text-yellow-700 text-xs font-semibold rounded-full";
+            statusBadge.innerText = "智能体执行中";
+
+            pulse.classList.remove('hidden');
+            dot.classList.replace('bg-gray-500', 'bg-green-500');
+
+            function addLog(msg, isError = false) {
+                const color = isError ? "text-red-400" : "text-green-400";
+                const time = new Date().toLocaleTimeString();
+                logContainer.innerHTML += `<div class="${color}">[${time}] ${msg}</div>`;
+                logContainer.scrollTop = logContainer.scrollHeight; // 自动滚动到底部
+            }
+
+            try {
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topic: topic })
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let buffer = "";
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n\n');
+
+                    // 保留最后一段不完整的片段，等待下一次 chunk
+                    buffer = lines.pop();
+
+                    for (let line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const dataStr = line.replace('data: ', '');
+                            try {
+                                const data = JSON.parse(dataStr);
+
+                                if (data.type === 'log') {
+                                    // 渲染日志记录
+                                    addLog(data.msg, data.is_error);
+                                } else if (data.type === 'final') {
+                                    // 渲染最终生成的 Markdown 文章
+                                    contentDiv.innerHTML = marked.parse(data.content);
+                                    statusBadge.className = "px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full";
+                                    statusBadge.innerText = "生成完成";
+                                    addLog("✅ 任务全部完成，已输出最终报告！");
+                                }
+                            } catch (e) {
+                                console.error("JSON Parse Error:", e, dataStr);
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                addLog(`系统错误：${error.message}`, true);
+                statusBadge.className = "px-3 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded-full";
+                statusBadge.innerText = "运行失败";
+            } finally {
+                topicInput.disabled = false;
+                submitBtn.disabled = false;
+                submitBtn.innerText = "重新启动 Agent";
+                pulse.classList.add('hidden');
+                dot.classList.replace('bg-green-500', 'bg-gray-500');
+            }
+        }
+    </script>
+</body>
+</html>
